@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reichweitenberechnung</title>
+
+<style>
+body{
+    font-family:Arial,sans-serif;
+    background:#f5f5f5;
+    margin:0;
+    padding:15px;
+}
+
+h1{
+    text-align:center;
+    font-size:28px;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    background:#d9534f;
+    color:white;
+    font-size:16px;
+    margin-bottom:15px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+th{
+    background:#007AFF;
+    color:white;
+    padding:12px;
+}
+
+td{
+    border-bottom:1px solid #eee;
+}
+
+input{
+    width:100%;
+    border:none;
+    padding:15px;
+    font-size:16px;
+    text-align:center;
+    box-sizing:border-box;
+}
+
+input:focus{
+    outline:none;
+    background:#eef7ff;
+}
+
+.readonly{
+    background:#f2f2f2;
+    font-weight:bold;
+}
+
+.result{
+    text-align:center;
+    font-weight:bold;
+    color:green;
+    padding:15px;
+}
+</style>
+</head>
+<body>
+
+<h1>Reichweitenberechnung</h1>
+
+<button onclick="resetData()">Daten löschen</button>
+
+<table>
+    <thead>
+        <tr>
+            <th>KM Stand</th>
+            <th>Akku %</th>
+            <th>Reichweite</th>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+
+<script>
+
+var tbody = document.getElementById("tableBody");
+
+function saveData() {
+
+    var data = [];
+    var rows = tbody.getElementsByTagName("tr");
+
+    for(var i=0;i<rows.length;i++){
+
+        var km = rows[i].querySelector(".km").value;
+        var battery = rows[i].querySelector(".battery").value;
+
+        data.push({
+            km: km,
+            battery: battery
+        });
+    }
+
+    localStorage.setItem(
+        "reichweitenberechnung",
+        JSON.stringify(data)
+    );
+}
+
+function addRow(referenceRow){
+
+    var tr = document.createElement("tr");
+
+    if(referenceRow){
+
+        tr.innerHTML =
+            "<td><input class='km' type='number'></td>" +
+            "<td><input class='battery readonly' type='number' value='100' readonly></td>" +
+            "<td class='result'></td>";
+
+    } else {
+
+        tr.innerHTML =
+            "<td><input class='km' type='number'></td>" +
+            "<td><input class='battery' type='number'></td>" +
+            "<td class='result'></td>";
+    }
+
+    tbody.appendChild(tr);
+
+    var inputs = tr.getElementsByTagName("input");
+
+    for(var i=0;i<inputs.length;i++){
+
+        inputs[i].addEventListener("input", function(){
+
+            calculate();
+            addEmptyRowIfNeeded();
+            saveData();
+
+        });
+    }
+}
+
+function calculate(){
+
+    var rows = tbody.getElementsByTagName("tr");
+
+    if(rows.length < 2){
+        return;
+    }
+
+    var startKm =
+        parseFloat(
+            rows[0].querySelector(".km").value
+        );
+
+    if(isNaN(startKm)){
+        return;
+    }
+
+    for(var i=1;i<rows.length;i++){
+
+        var km =
+            parseFloat(
+                rows[i].querySelector(".km").value
+            );
+
+        var battery =
+            parseFloat(
+                rows[i].querySelector(".battery").value
+            );
+
+        var result =
+            rows[i].querySelector(".result");
+
+        if(
+            isNaN(km) ||
+            isNaN(battery) ||
+            battery == 100
+        ){
+            result.innerHTML = "";
+            continue;
+        }
+
+        var reichweite =
+            Math.abs(km - startKm) /
+            Math.abs((battery / 100) - 1);
+
+        result.innerHTML =
+            Math.round(reichweite);
+    }
+}
+
+function addEmptyRowIfNeeded(){
+
+    var rows = tbody.getElementsByTagName("tr");
+    var lastRow = rows[rows.length - 1];
+
+    var km =
+        lastRow.querySelector(".km").value;
+
+    var battery =
+        lastRow.querySelector(".battery").value;
+
+    if(km !== "" && battery !== ""){
+
+        addRow(false);
+    }
+}
+
+function loadData(){
+
+    var saved =
+        localStorage.getItem(
+            "reichweitenberechnung"
+        );
+
+    if(saved === null){
+
+        addRow(true);
+        addRow(false);
+        return;
+    }
+
+    var data = JSON.parse(saved);
+
+    for(var i=0;i<data.length;i++){
+
+        addRow(i === 0);
+
+        var rows =
+            tbody.getElementsByTagName("tr");
+
+        rows[i].querySelector(".km").value =
+            data[i].km;
+
+        if(i > 0){
+
+            rows[i].querySelector(".battery").value =
+                data[i].battery;
+        }
+    }
+
+    addRow(false);
+    calculate();
+}
+
+function resetData(){
+
+    localStorage.removeItem(
+        "reichweitenberechnung"
+    );
+
+    location.reload();
+}
+
+window.onload = function(){
+    loadData();
+};
+
+</script>
+
+</body>
+</html>
